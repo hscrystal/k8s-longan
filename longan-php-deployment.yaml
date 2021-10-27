@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: longan-php-deployment
+  namespace: longan
+spec:
+  selector:
+    matchLabels:
+      app: longan-php
+  replicas: 1 
+  template:
+    metadata:
+      labels:
+        app: longan-php
+    spec:
+      volumes:
+        - name: longan-php-storage
+          persistentVolumeClaim:
+            claimName: longan-web-pvc
+      containers:
+      - name: longan-php
+        image: hscrystal/php74-fpm
+        ports:
+          - containerPort: 9000
+        volumeMounts:
+          - mountPath: "/var/www/laravel"
+            name: longan-php-storage
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php
+  namespace: longan
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+  selector:
+    app: longan-php

@@ -1,0 +1,83 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: longan-nginx-deployment
+  namespace: longan
+spec:
+  selector:
+    matchLabels:
+      app: longan-nginx
+  replicas: 1 
+  template:
+    metadata:
+      labels:
+        app: longan-nginx
+    spec:
+      volumes:
+        - name: longan-nginx-storage
+          persistentVolumeClaim:
+            claimName: longan-web-pvc
+      containers:
+      - name: longan-nginx
+        image: hscrystal/nginx-longan
+        ports:
+          - containerPort: 80
+        volumeMounts:
+          - mountPath: "/var/www/laravel"
+            name: longan-nginx-storage
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: longan-nginx-service
+  namespace: longan
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  selector:
+    app: longan-nginx
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: longan-nginx-ingress
+  namespace: longan
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`longan.hs-network.xyz`) && PathPrefix(`/`)
+    kind: Rule
+    middlewares:
+    - name: traefik-redirect-https@kubernetescrd 
+    services:
+    - name: longan-nginx-service
+      port: 80
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: longan-nginx-ingress-https
+  namespace: longan
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`longan.hs-network.xyz`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: longan-nginx-service
+      port: 80
+  tls:
+    certResolver: myresolver
