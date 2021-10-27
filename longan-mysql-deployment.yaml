@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: longan-mysql-deployment
+  namespace: longan
+spec:
+  selector:
+    matchLabels:
+      app: longan-db
+  replicas: 1 
+  template:
+    metadata:
+      labels:
+        app: longan-db
+    spec:
+      volumes:
+        - name: longan-db-storage
+          persistentVolumeClaim:
+            claimName: longan-db-pvc
+      containers:
+      - name: longan-db
+        image: mariadb:latest
+        env:
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: longan-secret
+                key: db-root
+          - name: MYSQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: longan-secret
+                key: db-name
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: longan-secret
+                key: db-user
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: longan-secret
+                key: db-pass
+        ports:
+          - containerPort: 3306
+        volumeMounts:
+          - mountPath: "/var/lib/mysql"
+            name: longan-db-storage
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: longan-db-service
+  namespace: longan
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+  selector:
+    app: longan-db

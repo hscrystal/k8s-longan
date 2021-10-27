@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: longan-debug-deployment
+  namespace: longan
+spec:
+  selector:
+    matchLabels:
+      app: longan-pma
+  replicas: 1 
+  template:
+    metadata:
+      labels:
+        app: longan-pma
+    spec:
+      containers:
+      - name: longan-pma
+        image: phpmyadmin/phpmyadmin
+        env:
+          - name: PMA_ARBITRARY
+            valueFrom:
+              secretKeyRef:
+                name: longan-secret
+                key: pma-arbitrary
+        ports:
+          - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: longan-pma-service
+  namespace: longan
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  selector:
+    app: longan-pma
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: longan-pma-ingress
+  namespace: longan
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`pma.hs-network.xyz`) && PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: longan-pma-service
+      port: 80
